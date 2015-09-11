@@ -186,7 +186,11 @@ func backtrackerIcarus() {
 					visited, mapSize = extendLabyrinth(visited, mapSize)
 				}
 
+				// Mini optimization
+				// We know that the NEXT cell is the treasure, so if all the next-next cells are already visited, it's not the treasure.
 				if !visited[z] {
+
+
 
 					visited[z] = true
 					walls, err = moveTo(n)
