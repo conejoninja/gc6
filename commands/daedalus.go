@@ -885,7 +885,6 @@ func createMaze() *Maze {
 	} else if mazeString=="backtrack" { // created using bactrack algo
 		return backtrackerMaze()
 	} else {
-		fmt.Println(mazeString, "Daedalus could create different maps, try using the parameter 'maze' with one of the following values :'backtrack', 'verticalspiky' (default), 'horizontalspiky', 'pattern' & 'void'")
 		return spikyVerticalMaze()
 	}
 

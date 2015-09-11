@@ -106,7 +106,12 @@ func initConfig() {
 
 //Execute adds all child commands to the root command Labyrinth and sets flags appropriately.
 func Execute() {
-	if err := RootCmd.Execute(); err != nil {
+	mazeString := viper.GetString("maze")
+	if mazeString=="default" {
+		fmt.Println("Daedalus could create different maps, try using the parameter 'maze' with one of the following values :'backtrack', 'verticalspiky' (default), 'horizontalspiky', 'pattern' & 'void'")
+	}
+
+		if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
