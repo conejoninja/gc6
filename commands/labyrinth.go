@@ -73,8 +73,8 @@ func init() {
 	RootCmd.PersistentFlags().IntP("height", "y", 10, "height of the laybrinth") // 'h' is used for help already
 	RootCmd.PersistentFlags().IntP("times", "t", 1, "times to solve the laybrinth")
 	RootCmd.PersistentFlags().IntP("max-steps", "m", 500, "Maximum steps before giving up")
-	RootCmd.PersistentFlags().StringP("maze", "z", "default", "type of labyrinth, available values are 'backtrack', 'verticalspiky', 'horizontalspiky', 'human' & 'void'")
-	RootCmd.PersistentFlags().StringP("ia", "i", "samedirection", "how Icarus will choose the path, available values are 'samedirection', 'random', 'mostlyright'")
+	RootCmd.PersistentFlags().StringP("maze", "z", "default", "type of labyrinth, available values are 'backtrack', 'verticalspiky' (default), 'horizontalspiky', 'human' & 'void'")
+	RootCmd.PersistentFlags().StringP("ia", "i", "samedirection", "how Icarus will choose the path, available values are 'samedirection' (default), 'random', 'mostlyright'")
 
 	// Bind viper to these flags so viper can read flag values along with config, env, etc.
 	viper.BindPFlag("width", RootCmd.PersistentFlags().Lookup("width"))

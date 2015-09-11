@@ -124,7 +124,7 @@ func ToReply(in []byte) mazelib.Reply {
  *
  */
 func backtrackerIcarus() {
-	// Assume the size of the maze is unknown, even if fo rthis challenge is fixed
+	// Assume the size of the maze is unknown, even if for this challenge is fixed
 	mapSize := 200
 	pathSize := mapSize
 	pathIndex :=0
@@ -192,7 +192,7 @@ func backtrackerIcarus() {
 					walls, err = moveTo(n)
 					goBack = false
 					if err==mazelib.ErrVictory {
-						r = 600
+						r = viper.GetInt("max-steps")+1 //break the outer loop (steps)
 						break
 					}
 					previousDirection = n
@@ -282,5 +282,5 @@ func extendLabyrinth(labyrinth []bool, size int) ([]bool, int) {
 
 
 func solveMaze() {
-	backtrackerIcarus()
+	backtrackerIcarus() // Initially I thought about having some different algo, the same way I have several for maze generation, run out of time
 }
