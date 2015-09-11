@@ -28,6 +28,7 @@ import (
 	"github.com/golangchallenge/gc6/mazelib"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"math"
 )
 
 type Maze struct {
@@ -66,6 +67,7 @@ func init() {
 	rand.Seed(time.Now().UTC().UnixNano()) // need to initialize the seed
 	gin.SetMode(gin.ReleaseMode)
 
+	// Removed some commands from here
 	RootCmd.AddCommand(daedalusCmd)
 }
 
@@ -356,14 +358,535 @@ func fullMaze() *Maze {
 	return z
 }
 
-// TODO: Write your maze creator function here
+
+func backtrackerMaze() *Maze {
+	z := fullMaze()
+	ySize := viper.GetInt("height")
+	xSize := viper.GetInt("width")
+	stackSize := ySize*xSize
+	stackIndex := 0
+	stack := make([]mazelib.Coordinate, xSize*ySize)
+	x := rand.Intn(xSize)
+	y := rand.Intn(ySize)
+	lastC := [4]bool{false, false, false, false}
+	lastCell := 5
+
+	stack[stackIndex] = mazelib.Coordinate{x, y}
+
+	c := 0
+	for c < stackSize{
+
+		free := 4
+		for n:=0; n<4; n++ {
+			 t := (1+lastCell+n)%4
+
+			switch (t) {
+			case 0:
+				if (y-1)<0 {
+					lastC[0] = true
+					free--
+				} else {
+					lastC[0] = z.rooms[y-1][x].Visited
+					if lastC[0] {
+						free--
+					}
+				}
+				break
+			case 1:
+				if (x+1)>=xSize {
+					lastC[1] = true
+					free--
+				} else {
+					lastC[1] = z.rooms[y][x+1].Visited
+					if lastC[1] {
+						free--
+					}
+				}
+				break
+			case 2:
+				if (y+1)>=ySize {
+					lastC[2] = true
+					free--
+				} else {
+					lastC[2] = z.rooms[y+1][x].Visited
+					if lastC[2] {
+						free--
+					}
+				}
+				break
+			case 3:
+				if (x-1)<0 {
+					lastC[3] = true
+					free--
+				} else {
+					lastC[3] = z.rooms[y][x-1].Visited
+					if lastC[3] {
+						free--
+					}
+				}
+				break
+			}
+		}
+
+		if free==0 {
+			lastCell = (lastCell+2)%4
+			lastC[lastCell] = true
+			stackIndex--
+			x = stack[stackIndex].X
+			y = stack[stackIndex].Y
+		} else {
+			t := rand.Intn(free)
+			tm := 0
+			for n:=0; n<4; n++ {
+				if (t+tm)==n && !lastC[n] {
+					t = n
+					break
+				}
+				if lastC[n] {
+					tm++
+				}
+			}
+
+			switch (t) {
+			case 0:
+				z.rooms[y][x].Walls.Top = false
+				y--
+				z.rooms[y][x].Walls.Bottom = false
+				break
+			case 1:
+				z.rooms[y][x].Walls.Right = false
+				x++
+				z.rooms[y][x].Walls.Left = false
+				break
+			case 2:
+				z.rooms[y][x].Walls.Bottom = false
+				y++
+				z.rooms[y][x].Walls.Top = false
+				break
+			case 3:
+				z.rooms[y][x].Walls.Left = false
+				x--
+				z.rooms[y][x].Walls.Right = false
+				break
+			}
+			lastC = [4]bool{false, false, false, false}
+			lastCell = (t+2)%4
+			lastC[lastCell] = true
+			stackIndex++
+			stack[stackIndex] = mazelib.Coordinate{x, y}
+			z.rooms[y][x].Visited = true
+
+			c++
+		}
+
+
+
+
+
+	}
+
+
+	// Random* icarus & treasure
+	icarusX := rand.Intn(xSize)
+	icarusY := rand.Intn(ySize)
+	treasureX := rand.Intn(xSize)
+	treasureY := rand.Intn(ySize)
+
+	// *Don't let them be in the same cell, no fun then
+	for ;; {
+		if icarusX!=treasureX || icarusY!=treasureY {
+			break
+		} else {
+			treasureX = rand.Intn(xSize)
+			treasureY = rand.Intn(ySize)
+		}
+	}
+	z.SetStartPoint(icarusX, icarusY)
+	z.SetTreasure(treasureX, treasureY)
+
+	return z
+}
+
+func spikyHorizontalMaze() *Maze {
+	z := fullMaze()
+	ySize := viper.GetInt("height")
+	xSize := viper.GetInt("width")
+
+	middleX := xSize/2
+	middleY := ySize/2
+
+	for x:=0;x<xSize;x++ {
+		for y:=0;y<ySize;y++ {
+			if x>0 && x!=(middleX+1) {
+				z.rooms[y][x].Walls.Left = false
+			}
+			if x<(xSize-1) && x!=middleX {
+				z.rooms[y][x].Walls.Right = false
+			}
+			if x==0 && y>0 {
+				z.rooms[y][x].Walls.Top = false
+			}
+			if x==0 && y<(ySize-1) {
+				z.rooms[y][x].Walls.Bottom = false
+			}
+			if x==(xSize-1) && y>0 {
+				z.rooms[y][x].Walls.Top = false
+			}
+			if x==(xSize-1) && y<(ySize-1) {
+				z.rooms[y][x].Walls.Bottom = false
+			}
+		}
+	}
+
+	z.rooms[0][middleX].Walls.Right = false
+	z.rooms[ySize-1][middleX].Walls.Right = false
+	z.rooms[0][middleX+1].Walls.Left = false
+	z.rooms[ySize-1][middleX+1].Walls.Left = false
+
+	z.rooms[middleY][xSize-1].Walls.Bottom = true
+	z.rooms[middleY+1][xSize-1].Walls.Top = true
+
+
+	// Random* icarus & treasure
+	icarusX := rand.Intn(xSize)
+	icarusY := rand.Intn(ySize)
+	treasureX := rand.Intn(xSize)
+	treasureY := rand.Intn(ySize)
+
+	// *Don't let them be in the same cell, no fun then
+	for ;; {
+		if icarusX!=treasureX || icarusY!=treasureY {
+			break
+		} else {
+			treasureX = rand.Intn(xSize)
+			treasureY = rand.Intn(ySize)
+		}
+	}
+
+	z.SetStartPoint(icarusX, icarusY)
+	z.SetTreasure(treasureX, treasureY)
+
+	return z
+}
+
+func spikyVerticalMaze() *Maze {
+	z := fullMaze()
+	ySize := viper.GetInt("height")
+	xSize := viper.GetInt("width")
+
+	middleY := ySize/2
+
+	for x:=0;x<xSize;x++ {
+		for y:=0;y<ySize;y++ {
+			if y>0 && y!=(middleY) {
+				z.rooms[y][x].Walls.Top = false
+			}
+			if y<(ySize-1) && y!=(middleY-1) {
+				z.rooms[y][x].Walls.Bottom = false
+			}
+			if y==0 && x>0 {
+				z.rooms[y][x].Walls.Left = false
+			}
+			if y==0 && x<(xSize-1) {
+				z.rooms[y][x].Walls.Right = false
+			}
+			if y==(ySize-1) && x>0 {
+				z.rooms[y][x].Walls.Left = false
+			}
+			if y==(ySize-1) && x<(xSize-1) {
+				z.rooms[y][x].Walls.Right = false
+			}
+		}
+	}
+
+	z.rooms[middleY-1][0].Walls.Bottom = false;
+	z.rooms[middleY][0].Walls.Top = false;
+
+	// Random* icarus & treasure
+	icarusX := rand.Intn(xSize)
+	icarusY := rand.Intn(ySize)
+	treasureX := rand.Intn(xSize)
+	treasureY := rand.Intn(ySize)
+
+	// *Don't let them be in the same cell, no fun then
+	for ;; {
+		if icarusX!=treasureX || icarusY!=treasureY {
+			break
+		} else {
+			treasureX = rand.Intn(xSize)
+			treasureY = rand.Intn(ySize)
+		}
+	}
+
+	z.SetStartPoint(icarusX, icarusY)
+	z.SetTreasure(treasureX, treasureY)
+
+	return z
+}
+
+func voidMaze() *Maze {
+	z := emptyMaze()
+	ySize := viper.GetInt("height")
+	xSize := viper.GetInt("width")
+
+	for x:=0;x<xSize;x++ {
+		for y:=0;y<ySize;y++ {
+			if x==0 {
+				z.rooms[y][x].Walls.Left = true
+			}
+			if x==(xSize-1) {
+				z.rooms[y][x].Walls.Right = true
+			}
+			if y==0 {
+				z.rooms[y][x].Walls.Top = true
+			}
+			if y==(ySize-1) {
+				z.rooms[y][x].Walls.Bottom = true
+			}
+		}
+	}
+
+
+	// Random* icarus & treasure
+	icarusX := rand.Intn(xSize)
+	icarusY := rand.Intn(ySize)
+	treasureX := rand.Intn(xSize)
+	treasureY := rand.Intn(ySize)
+
+	// *Don't let them be in the same cell, no fun then
+	for ;; {
+		if icarusX!=treasureX || icarusY!=treasureY {
+			break
+		} else {
+			treasureX = rand.Intn(xSize)
+			treasureY = rand.Intn(ySize)
+		}
+	}
+
+	z.SetStartPoint(icarusX, icarusY)
+	z.SetTreasure(treasureX, treasureY)
+
+	return z
+}
+
+func patternMaze() *Maze {
+	z := fullMaze()
+	ySize := viper.GetInt("height")
+	xSize := viper.GetInt("width")
+
+	xPattern := int(math.Floor(float64(xSize/4)))
+	yPattern := int(math.Floor(float64(ySize/4)))
+
+	// Repeat human-made pattern 4x4
+	for x:=0;x<xPattern;x++ {
+		for y:=0;y<yPattern;y++ {
+			z.rooms[4*y][4*x].Walls = mazelib.Survey{true, false, false, true}
+			z.rooms[4*y][4*x+1].Walls = mazelib.Survey{true, true, true, false}
+			z.rooms[4*y][4*x+2].Walls = mazelib.Survey{true, false, false, true}
+			z.rooms[4*y][4*x+3].Walls = mazelib.Survey{true, true, false, false}
+
+			z.rooms[4*y+1][4*x].Walls = mazelib.Survey{false, true, false, true}
+			z.rooms[4*y+1][4*x+1].Walls = mazelib.Survey{true, false, false, true}
+			z.rooms[4*y+1][4*x+2].Walls = mazelib.Survey{false, true, true, false}
+			z.rooms[4*y+1][4*x+3].Walls = mazelib.Survey{false, true, true, true}
+
+			z.rooms[4*y+2][4*x].Walls = mazelib.Survey{false, false, true, true}
+			z.rooms[4*y+2][4*x+1].Walls = mazelib.Survey{false, false, false, false}
+			z.rooms[4*y+2][4*x+2].Walls = mazelib.Survey{true, true, false, false}
+			z.rooms[4*y+2][4*x+3].Walls = mazelib.Survey{true, true, false, true}
+
+			z.rooms[4*y+3][4*x].Walls = mazelib.Survey{true, false, true, true}
+			z.rooms[4*y+3][4*x+1].Walls = mazelib.Survey{false, true, true, false}
+			z.rooms[4*y+3][4*x+2].Walls = mazelib.Survey{false, false, true, true}
+			z.rooms[4*y+3][4*x+3].Walls = mazelib.Survey{false, true, true, false}
+
+			z.rooms[4*y][4*x+3].Visited = true
+			z.rooms[4*y+1][4*x+3].Visited = true
+			z.rooms[4*y+2][4*x+3].Visited = true
+			z.rooms[4*y+3][4*x].Visited = true
+			z.rooms[4*y+3][4*x+1].Visited = true
+			z.rooms[4*y+3][4*x+2].Visited = true
+			z.rooms[4*y+3][4*x+3].Visited = true
+		}
+	}
+
+	// Fill the non-pattern with backtrack maze
+	if xSize>(xPattern*4) || ySize>(yPattern*4) {
+		stackSize := ySize*xSize-(16*xPattern*yPattern)
+		stackIndex := 0
+		stack := make([]mazelib.Coordinate, stackSize)
+		x := xSize-1
+		y := ySize-1
+		lastC := [4]bool{false, true, true, false}
+		lastCell := 2
+
+		stack[stackIndex] = mazelib.Coordinate{x, y}
+
+		c := 0
+		for c < stackSize{
+			free := 3
+			for n:=0; n<3; n++ {
+				t := (1+lastCell+n)%4
+
+				switch (t) {
+				case 0:
+					if (y-1)<0 {
+						lastC[0] = true
+						free--
+					} else {
+						lastC[0] = z.rooms[y-1][x].Visited
+						if lastC[0] {
+							free--
+						}
+					}
+					break
+				case 1:
+					if (x+1)>=xSize {
+						lastC[1] = true
+						free--
+					} else {
+						lastC[1] = z.rooms[y][x+1].Visited
+						if lastC[1] {
+							free--
+						}
+					}
+					break
+				case 2:
+					if (y+1)>=ySize {
+						lastC[2] = true
+						free--
+					} else {
+						lastC[2] = z.rooms[y+1][x].Visited
+						if lastC[2] {
+							free--
+						}
+					}
+					break
+				case 3:
+					if (x-1)<0 {
+						lastC[3] = true
+						free--
+					} else {
+						lastC[3] = z.rooms[y][x-1].Visited
+						if lastC[3] {
+							free--
+						}
+					}
+					break
+				}
+			}
+
+			if free==0 {
+				lastCell = (lastCell+2)%4
+				lastC[lastCell] = true
+				stackIndex--
+				x = stack[stackIndex].X
+				y = stack[stackIndex].Y
+			} else {
+				t := rand.Intn(free)
+				tm := 0
+				for n:=0; n<4; n++ {
+					if (t+tm)==n && !lastC[n] {
+						t = n
+						break
+					}
+					if lastC[n] {
+						tm++
+					}
+				}
+
+				switch (t) {
+				case 0:
+					z.rooms[y][x].Walls.Top = false
+					y--
+					z.rooms[y][x].Walls.Bottom = false
+					break
+				case 1:
+					z.rooms[y][x].Walls.Right = false
+					x++
+					z.rooms[y][x].Walls.Left = false
+					break
+				case 2:
+					z.rooms[y][x].Walls.Bottom = false
+					y++
+					z.rooms[y][x].Walls.Top = false
+					break
+				case 3:
+					z.rooms[y][x].Walls.Left = false
+					x--
+					z.rooms[y][x].Walls.Right = false
+					break
+				}
+				lastC = [4]bool{false, false, false, false}
+				lastCell = (t+2)%4
+				lastC[lastCell] = true
+				stackIndex++
+				stack[stackIndex] = mazelib.Coordinate{x, y}
+				z.rooms[y][x].Visited = true
+
+				c++
+			}
+		}
+	}
+
+	r := 0
+	for x:=0;x<xPattern;x++ {
+		for y := 0; y<yPattern; y++ {
+			if (4*x+3)<xSize {
+				r = rand.Intn(4);
+				z.rooms[4*y+r][4*x+3].Walls.Right = false
+				z.rooms[4*y+r][4*x+4].Walls.Left = false
+			}
+
+			if (4*y+3)<ySize {
+				r = rand.Intn(4);
+				z.rooms[4*y+3][4*x+r].Walls.Bottom = false
+				z.rooms[4*y+4][4*x+r].Walls.Top = false
+			}
+		}
+	}
+
+
+	// Random* icarus & treasure
+	icarusX := rand.Intn(xSize)
+	icarusY := rand.Intn(ySize)
+	treasureX := rand.Intn(xSize)
+	treasureY := rand.Intn(ySize)
+
+	// *Don't let them be in the same cell, no fun then
+	for ;; {
+		if icarusX!=treasureX || icarusY!=treasureY {
+			break
+		} else {
+			treasureX = rand.Intn(xSize)
+			treasureY = rand.Intn(ySize)
+		}
+	}
+
+	z.SetStartPoint(icarusX, icarusY)
+	z.SetTreasure(treasureX, treasureY)
+
+	return z
+}
+
+
 func createMaze() *Maze {
 
-	// TODO: Fill in the maze:
-	// You need to insert a startingPoint for Icarus
-	// You need to insert an EndingPoint (treasure) for Icarus
-	// You need to Add and Remove walls as needed.
-	// Use the mazelib.AddWall & mazelib.RmWall to do this
+	// Get the maze flag to change among some types of mazes
+	mazeString := viper.GetString("maze")
+	if mazeString=="void" { // "empty" maze, only outer walls
+		return voidMaze()
+	} else if mazeString=="horizontalspiky" { // this works quite well
+		return spikyHorizontalMaze()
+	} else if mazeString=="verticalspiky" {
+		return spikyVerticalMaze()
+	} else if mazeString=="pattern" { // repeat a human-made pattern over and over
+		return patternMaze()
+	} else if mazeString=="backtrack" { // created using bactrack algo
+		return backtrackerMaze()
+	} else {
+		fmt.Println(mazeString, "Daedalus could create different maps, try using the parameter 'maze' with one of the following values :'backtrack', 'verticalspiky' (default), 'horizontalspiky', 'pattern' & 'void'")
+		return spikyVerticalMaze()
+	}
 
-	return emptyMaze()
 }

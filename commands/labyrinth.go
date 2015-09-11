@@ -29,7 +29,7 @@ import (
 )
 
 // TODO: Your name here
-var AuthorName = ""
+var AuthorName = "Daniel Esteban"
 
 var CfgFile string
 
@@ -73,10 +73,14 @@ func init() {
 	RootCmd.PersistentFlags().IntP("height", "y", 10, "height of the laybrinth") // 'h' is used for help already
 	RootCmd.PersistentFlags().IntP("times", "t", 1, "times to solve the laybrinth")
 	RootCmd.PersistentFlags().IntP("max-steps", "m", 500, "Maximum steps before giving up")
+	RootCmd.PersistentFlags().StringP("maze", "z", "default", "type of labyrinth, available values are 'backtrack', 'verticalspiky', 'horizontalspiky', 'human' & 'void'")
+	RootCmd.PersistentFlags().StringP("ia", "i", "samedirection", "how Icarus will choose the path, available values are 'samedirection', 'random', 'mostlyright'")
 
 	// Bind viper to these flags so viper can read flag values along with config, env, etc.
 	viper.BindPFlag("width", RootCmd.PersistentFlags().Lookup("width"))
 	viper.BindPFlag("height", RootCmd.PersistentFlags().Lookup("height"))
+	viper.BindPFlag("maze", RootCmd.PersistentFlags().Lookup("maze"))
+	viper.BindPFlag("ia", RootCmd.PersistentFlags().Lookup("ia"))
 	viper.BindPFlag("port", RootCmd.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("times", RootCmd.PersistentFlags().Lookup("times"))
 	viper.BindPFlag("max-steps", RootCmd.PersistentFlags().Lookup("max-steps"))

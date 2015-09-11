@@ -25,6 +25,9 @@ import (
 	"github.com/golangchallenge/gc6/mazelib"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"math"
+	"math/rand"
+	"os"
 )
 
 // Defining the icarus command.
@@ -115,12 +118,169 @@ func ToReply(in []byte) mazelib.Reply {
 	return *res
 }
 
-// TODO: This is where you work your magic
+/**
+ * Icarus will create a virtual map of the maze to keep track of the visited cells (visited)
+ * Will also have a list the current path taken from the starting point (path)
+ *
+ */
+func backtrackerIcarus() {
+	// Assume the size of the maze is unknown, even if fo rthis challenge is fixed
+	mapSize := 200
+	pathSize := mapSize
+	pathIndex :=0
+	// Grow a 1D array is easier than 2D array
+	visited := make([]bool, mapSize)
+	path := make([]mazelib.Coordinate, mapSize)
+	previousDirection := rand.Intn(4)
+	// Add 1 so it doesn't complain of unused variable (depends on the IA choosen it might not be used)
+	previousDirection++
+
+
+	x := 0
+	y := 0
+	walls := awake();
+	err := errors.New("none")
+	visited[0] = true
+	path[0] = mazelib.Coordinate{0, 0}
+	for r:=0;r<viper.GetInt("max-steps");r++ { // It's a good idea to limit the step Icarus could take, so it doesn't walk forever, but it's already limited by Daedalus
+		goBack := true
+
+		//previous direction (default option)
+		nr := previousDirection
+		if viper.GetString("ia")=="random" {
+			//random decision making
+			nr = rand.Intn(4)
+		} else if viper.GetString("ia")=="mostlyright" {
+			// mostly right turns
+			nr = 0
+		}
+
+		for w:=0;w<4;w++ {
+
+			n := (nr+w)%4
+
+			if (n==0 && !walls.Top) || (n==1 && !walls.Right) || (n==2 && !walls.Bottom) || (n==3 && !walls.Left) {
+				z := 0
+				nx := x
+				ny := y
+				switch(n) {
+				case 0:
+					ny = y-1
+					z = coordsToInt(x, y-1) // visited is a 1D array, so we need a function f(x,y) = z where z is unique foreach x,y pair
+					break
+				case 1:
+					nx = x+1
+					z = coordsToInt(x+1, y)
+					break
+				case 2:
+					ny = y+1
+					z = coordsToInt(x, y+1)
+					break
+				case 3:
+					nx = x-1
+					z = coordsToInt(x-1, y)
+					break
+				}
+				// we may want to extend our virtual maze
+				for ; z>=mapSize; {
+					visited, mapSize = extendLabyrinth(visited, mapSize)
+				}
+
+				if !visited[z] {
+
+					visited[z] = true
+					walls, err = moveTo(n)
+					goBack = false
+					if err==mazelib.ErrVictory {
+						r = 600
+						break
+					}
+					previousDirection = n
+					x = nx
+					y = ny
+					pathIndex++
+					if pathIndex<pathSize {
+						path, pathSize = extendPath(path, pathSize)
+					}
+					path[pathIndex] = mazelib.Coordinate{x, y}
+					break
+				}
+			}
+		}
+		if goBack {
+			pathIndex--
+			if pathIndex<0 {
+				// This should never happens, it means we have to go back further than the starting cell
+				fmt.Println("No path to the treasure")
+				os.Exit(3)
+			}
+			coords := path[pathIndex]
+			if coords.Y<y {
+				walls, _ = moveTo(0)
+			} else if coords.X>x {
+				walls, _ = moveTo(1)
+			} else if coords.Y>y {
+				walls, _ = moveTo(2)
+			} else  {
+				walls, _ = moveTo(3)
+			}
+			x = coords.X
+			y = coords.Y
+		}
+	}
+
+}
+
+// little wrapper as it's easier to work with int than strings for the directions
+func moveTo(n int) (mazelib.Survey, error) {
+	if n==0 {
+		return Move("up")
+	} else if n==1 {
+		return Move("right")
+	} else if n==2 {
+		return Move("down")
+	}
+	return Move("left")
+}
+
+/**
+ * f(x,y) = z, foreach x,y pair, exists an unique z (cantor pairing)
+ * We start in coords 0,0 (this could be in the middle of the maze)
+ * so we could have positive and negative coords
+ *
+ * Note: This could be a problem with some big mazes, as the numbers grow quite fast, and we may be interested in using BigNumbers
+ */
+func coordsToInt(x, y int) int {
+	z := 0
+	for k:=1;k<=int(math.Abs(float64(x))+math.Abs(float64(y)));k++ {
+		z += k
+	}
+	z += int(math.Abs(float64(y)))
+	z *= 4
+	if x>=0 && y<0 {
+		z += 1
+	} else if x<0 && y>=0 {
+		z += 2
+	} else if x>=0 && y>=0 {
+		z += 3
+	}
+	return z
+}
+
+func extendPath(path []mazelib.Coordinate, size int) ([]mazelib.Coordinate, int){
+	newSize := size+100;
+	newPath := make([]mazelib.Coordinate, newSize)
+	copy(newPath, path)
+	return newPath, newSize
+}
+func extendLabyrinth(labyrinth []bool, size int) ([]bool, int) {
+	newSize := size+200
+	newLabyrinth := make([]bool, newSize)
+	copy(newLabyrinth, labyrinth)
+	return newLabyrinth, newSize
+}
+
+
 func solveMaze() {
-	_ = awake() // Need to start with waking up to initialize a new maze
-	// You'll probably want to set this to a named value and start by figuring
-	// out which step to take next
-
-	//TODO: Write your solver algorithm here
-
+	backtrackerIcarus()
 }
