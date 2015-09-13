@@ -130,7 +130,7 @@ func ToReply(in []byte) mazelib.Reply {
  * Will also have a list the current path taken from the starting point (path)
  *
  */
-func backtrackerOldIcarus() {
+func backtrackerClassicIcarus() {
 	// Assume the size of the maze is unknown, even if for this challenge is fixed
 	mapSize := 200
 	pathSize := mapSize
@@ -155,10 +155,10 @@ func backtrackerOldIcarus() {
 
 		//previous direction (default option)
 		nr := previousDirection
-		if viper.GetString("ia")=="random" {
+		if viper.GetString("ia")=="classicrandom" {
 			//random decision making
 			nr = rand.Intn(4)
-		} else if viper.GetString("ia")=="mostlyright" {
+		} else if viper.GetString("ia")=="classicmostlyright"{
 			// mostly right turns
 			nr = 0
 		}
@@ -378,26 +378,6 @@ func backtrackerIcarus() {
 
 			}
 
-			/*
-			pathIndex--
-			if pathIndex<0 {
-				// This should never happens, it means we have to go back further than the starting cell
-				fmt.Println("No path to the treasure")
-				os.Exit(3)
-			}
-			coords := path[pathIndex]
-			if coords.Y<y {
-				walls, _ = moveTo(0)
-			} else if coords.X>x {
-				walls, _ = moveTo(1)
-			} else if coords.Y>y {
-				walls, _ = moveTo(2)
-			} else  {
-				walls, _ = moveTo(3)
-			}
-			x = coords.X
-			y = coords.Y
-			*/
 		}
 	}
 
@@ -529,6 +509,9 @@ func extendVirtual(labyrinth []VirtualMaze, size int) ([]VirtualMaze, int) {
 }
 
 func solveMaze() {
-	//backtrackerOldIcarus()
-	backtrackerIcarus() // Initially I thought about having some different algo, the same way I have several for maze generation, run out of time
+	if viper.GetString("ia")=="classicrandom" || viper.GetString("ia")=="classicmostlyright" || viper.GetString("ia")=="classicsamedirection" {
+		backtrackerClassicIcarus()
+	} else {
+		backtrackerIcarus()
+	}
 }
