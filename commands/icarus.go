@@ -30,6 +30,12 @@ import (
 	"os"
 )
 
+type VirtualMaze struct {
+	Coords 		mazelib.Coordinate
+	Walls		mazelib.Survey
+	Visited		bool
+}
+
 // Defining the icarus command.
 // This will be called as 'laybrinth icarus'
 var icarusCmd = &cobra.Command{
@@ -118,12 +124,13 @@ func ToReply(in []byte) mazelib.Reply {
 	return *res
 }
 
+
 /**
  * Icarus will create a virtual map of the maze to keep track of the visited cells (visited)
  * Will also have a list the current path taken from the starting point (path)
  *
  */
-func backtrackerIcarus() {
+func backtrackerOldIcarus() {
 	// Assume the size of the maze is unknown, even if for this challenge is fixed
 	mapSize := 200
 	pathSize := mapSize
@@ -134,14 +141,15 @@ func backtrackerIcarus() {
 	previousDirection := rand.Intn(4)
 	// Add 1 so it doesn't complain of unused variable (depends on the IA choosen it might not be used)
 	previousDirection++
+	z := coordsToInt(0, 0)
 
 
 	x := 0
 	y := 0
 	walls := awake();
 	err := errors.New("none")
-	visited[0] = true
-	path[0] = mazelib.Coordinate{0, 0}
+	visited[z] = true
+	path[z] = mazelib.Coordinate{0, 0}
 	for r:=0;r<viper.GetInt("max-steps");r++ { // It's a good idea to limit the step Icarus could take, so it doesn't walk forever, but it's already limited by Daedalus
 		goBack := true
 
@@ -160,13 +168,12 @@ func backtrackerIcarus() {
 			n := (nr+w)%4
 
 			if (n==0 && !walls.Top) || (n==1 && !walls.Right) || (n==2 && !walls.Bottom) || (n==3 && !walls.Left) {
-				z := 0
 				nx := x
 				ny := y
 				switch(n) {
 				case 0:
 					ny = y-1
-					z = coordsToInt(x, y-1) // visited is a 1D array, so we need a function f(x,y) = z where z is unique foreach x,y pair
+					z = coordsToInt(x, y-1) // maze is a 1D array, so we need a function f(x,y) = z where z is unique foreach x,y pair
 					break
 				case 1:
 					nx = x+1
@@ -183,15 +190,10 @@ func backtrackerIcarus() {
 				}
 				// we may want to extend our virtual maze
 				for ; z>=mapSize; {
-					visited, mapSize = extendLabyrinth(visited, mapSize)
+					visited, mapSize = extendVisited(visited, mapSize)
 				}
 
-				// Mini optimization
-				// We know that the NEXT cell is the treasure, so if all the next-next cells are already visited, it's not the treasure.
 				if !visited[z] {
-
-
-
 					visited[z] = true
 					walls, err = moveTo(n)
 					goBack = false
@@ -203,15 +205,20 @@ func backtrackerIcarus() {
 					x = nx
 					y = ny
 					pathIndex++
-					if pathIndex<pathSize {
+					if pathIndex>=pathSize {
 						path, pathSize = extendPath(path, pathSize)
 					}
 					path[pathIndex] = mazelib.Coordinate{x, y}
+
 					break
 				}
 			}
 		}
 		if goBack {
+
+			// FIND NEAREST non visited cell?
+
+
 			pathIndex--
 			if pathIndex<0 {
 				// This should never happens, it means we have to go back further than the starting cell
@@ -234,6 +241,236 @@ func backtrackerIcarus() {
 	}
 
 }
+
+/**
+ * Icarus will create a virtual map of the maze to keep track of the visited cells (visited)
+ * Will also have a list the current path taken from the starting point (path)
+ *
+ */
+func backtrackerIcarus() {
+	// Assume the size of the maze is unknown, even if for this challenge is fixed
+	mapSize := 200
+	pathSize := mapSize
+	pathIndex :=0
+	// Grow a 1D array is easier than 2D array
+	virtual := make([]VirtualMaze, mapSize)
+	path := make([]mazelib.Coordinate, mapSize)
+	previousDirection := rand.Intn(4)
+	// Add 1 so it doesn't complain of unused variable (depends on the IA choosen it might not be used)
+	previousDirection++
+	z := coordsToInt(0, 0)
+
+
+	x := 0
+	y := 0
+	walls := awake();
+	err := errors.New("none")
+	virtual[z].Visited = true
+	virtual[z].Walls = walls
+	path[z] = mazelib.Coordinate{0, 0}
+	for r:=0;r<viper.GetInt("max-steps");r++ { // It's a good idea to limit the step Icarus could take, so it doesn't walk forever, but it's already limited by Daedalus
+		goBack := true
+
+		//previous direction (default option)
+		nr := previousDirection
+		if viper.GetString("ia")=="random" {
+			//random decision making
+			nr = rand.Intn(4)
+		} else if viper.GetString("ia")=="mostlyright" {
+			// mostly right turns
+			nr = 0
+		}
+
+		for w:=0;w<4;w++ {
+
+			n := (nr+w)%4
+
+			if (n==0 && !walls.Top) || (n==1 && !walls.Right) || (n==2 && !walls.Bottom) || (n==3 && !walls.Left) {
+				nx := x
+				ny := y
+				switch(n) {
+				case 0:
+					ny = y-1
+					z = coordsToInt(x, y-1) // maze is a 1D array, so we need a function f(x,y) = z where z is unique foreach x,y pair
+					break
+				case 1:
+					nx = x+1
+					z = coordsToInt(x+1, y)
+					break
+				case 2:
+					ny = y+1
+					z = coordsToInt(x, y+1)
+					break
+				case 3:
+					nx = x-1
+					z = coordsToInt(x-1, y)
+					break
+				}
+				// we may want to extend our virtual maze
+				for ; z>=mapSize; {
+					virtual, mapSize = extendVirtual(virtual, mapSize)
+				}
+
+				if !virtual[z].Visited {
+					virtual[z].Visited = true
+					walls, err = moveTo(n)
+					virtual[z].Walls = walls
+					virtual[z].Coords = mazelib.Coordinate{nx, ny}
+					goBack = false
+					if err==mazelib.ErrVictory {
+						r = viper.GetInt("max-steps")+1 //break the outer loop (steps)
+						break
+					}
+					previousDirection = n
+					x = nx
+					y = ny
+					pathIndex++
+					if pathIndex>=pathSize {
+						path, pathSize = extendPath(path, pathSize)
+					}
+					path[pathIndex] = mazelib.Coordinate{x, y}
+
+					break
+				}
+			}
+		}
+		if goBack {
+
+			// FIND NEAREST non visited cell?
+			nPath := make([]mazelib.Coordinate, 1, viper.GetInt("max-steps"))
+			nPath[0] = mazelib.Coordinate{x, y}
+			newPath, newLength := nearestUnvisited(virtual, nPath, viper.GetInt("max-steps"))
+
+			if newLength==viper.GetInt("max-steps") || newLength<2 {
+				// ERROR
+				newPath = make([]mazelib.Coordinate, 2, viper.GetInt("max-steps"))
+				newPath[1] = mazelib.Coordinate{path[pathIndex-1].X, path[pathIndex-1].Y}
+				newLength = 2
+			}
+
+			for p:=1;p<newLength;p++ {
+				if newPath[p].X<x {
+					walls, err = moveTo(3)
+					previousDirection = 3
+				} else if newPath[p].X>x {
+					walls, err = moveTo(1)
+					previousDirection = 1
+				} else if newPath[p].Y<y {
+					walls, err = moveTo(0)
+					previousDirection = 0
+				} else if newPath[p].Y>y {
+					walls, err = moveTo(2)
+					previousDirection = 2
+				}
+				x = newPath[p].X
+				y = newPath[p].Y
+				z = coordsToInt(x, y)
+				for ; z>=mapSize; {
+					virtual, mapSize = extendVirtual(virtual, mapSize)
+				}
+				virtual[z].Visited = true
+				virtual[z].Walls = walls
+
+				if err==mazelib.ErrVictory {
+					r = viper.GetInt("max-steps")+1 //break the outer loop (steps)
+					break
+				}
+
+			}
+
+			/*
+			pathIndex--
+			if pathIndex<0 {
+				// This should never happens, it means we have to go back further than the starting cell
+				fmt.Println("No path to the treasure")
+				os.Exit(3)
+			}
+			coords := path[pathIndex]
+			if coords.Y<y {
+				walls, _ = moveTo(0)
+			} else if coords.X>x {
+				walls, _ = moveTo(1)
+			} else if coords.Y>y {
+				walls, _ = moveTo(2)
+			} else  {
+				walls, _ = moveTo(3)
+			}
+			x = coords.X
+			y = coords.Y
+			*/
+		}
+	}
+
+}
+
+func nearestUnvisited(maze []VirtualMaze, path []mazelib.Coordinate, shortestLen int) ([]mazelib.Coordinate, int) {
+	l := len(maze)
+	lp := len(path)
+	if lp>=shortestLen {
+		return make([]mazelib.Coordinate,1), shortestLen
+	}
+	coords := path[lp-1]
+	z := coordsToInt(coords.X, coords.Y)
+	var tmpPath []mazelib.Coordinate
+	tmpLen := viper.GetInt("max-steps")
+	var shortestPath []mazelib.Coordinate
+	if z<l {
+		walls := maze[z].Walls
+
+		for i:=0;i<4;i++ {
+			tmpX := coords.X-1
+			tmpY := coords.Y
+			tmpWall := walls.Left
+			if i==0 {
+				tmpX = coords.X
+				tmpY = coords.Y-1
+				tmpWall = walls.Top
+			} else if i==1 {
+				tmpX = coords.X+1
+				tmpY = coords.Y
+				tmpWall = walls.Right
+			} else if i==2 {
+				tmpX = coords.X
+				tmpY = coords.Y+1
+				tmpWall = walls.Bottom
+			}
+			if !tmpWall && (lp==1 || (lp>1 && (tmpX!=path[lp-2].X || tmpY!=path[lp-2].Y))) {
+
+				found := false
+				for p:=(lp-1);p>=0;p-- {
+					if path[p].X==tmpX && path[p].Y==tmpY {
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					z = coordsToInt(tmpX, tmpY)
+					tmpPath = path[0 : lp+1]
+					tmpPath[lp] = mazelib.Coordinate{tmpX, tmpY}
+					//fmt.Println("ADD CELL", tmpX, tmpY, maze[z].Walls, walls, tmpPath)
+					tmpLen = lp+1
+
+					if z<l && maze[z].Visited && tmpLen<shortestLen {
+						tmpPath, tmpLen = nearestUnvisited(maze, tmpPath, shortestLen)
+					}
+
+					if tmpLen<shortestLen {
+						shortestLen = tmpLen
+						shortestPath = make([]mazelib.Coordinate, tmpLen) //tmpPath[0:tmpLen]
+						copy(shortestPath, tmpPath)
+					}
+				}
+			}
+		}
+
+	} else {
+		return path, lp
+	}
+
+	return shortestPath, shortestLen
+}
+
 
 // little wrapper as it's easier to work with int than strings for the directions
 func moveTo(n int) (mazelib.Survey, error) {
@@ -277,14 +514,21 @@ func extendPath(path []mazelib.Coordinate, size int) ([]mazelib.Coordinate, int)
 	copy(newPath, path)
 	return newPath, newSize
 }
-func extendLabyrinth(labyrinth []bool, size int) ([]bool, int) {
+func extendVisited(labyrinth []bool, size int) ([]bool, int) {
 	newSize := size+200
 	newLabyrinth := make([]bool, newSize)
 	copy(newLabyrinth, labyrinth)
 	return newLabyrinth, newSize
 }
 
+func extendVirtual(labyrinth []VirtualMaze, size int) ([]VirtualMaze, int) {
+	newSize := size+200
+	newLabyrinth := make([]VirtualMaze, newSize)
+	copy(newLabyrinth, labyrinth)
+	return newLabyrinth, newSize
+}
 
 func solveMaze() {
+	//backtrackerOldIcarus()
 	backtrackerIcarus() // Initially I thought about having some different algo, the same way I have several for maze generation, run out of time
 }

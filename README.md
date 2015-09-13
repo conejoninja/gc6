@@ -5,7 +5,7 @@ Daniel Esteban - [@_CONEJO](https://twitter.com/_CONEJO)
 
 
 #### Daedalus
-Daedalus could accept the flag "maze" to generate different type of maps, accepted values are: 'backtrack', 'verticalspiky' (default), 'horizontalspiky', 'pattern' & 'void'
+Daedalus could accept the flag "maze" to generate different type of maps, accepted values are: 'prim' (default), 'circle', 'backtrack', 'verticalspiky', 'rightdown', 'horizontalspiky', 'pattern' & 'void'
 
  
 ### Icarus

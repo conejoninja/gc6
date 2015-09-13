@@ -108,7 +108,7 @@ func initConfig() {
 func Execute() {
 	mazeString := viper.GetString("maze")
 	if mazeString=="default" {
-		fmt.Println("Daedalus could create different maps, try using the parameter 'maze' with one of the following values :'backtrack', 'verticalspiky' (default), 'horizontalspiky', 'pattern' & 'void'")
+		fmt.Println(mazeString, "Daedalus could create different maps, try using the parameter 'maze' with one of the following values :'prim' (default), 'circle', 'rightdown', 'backtrack', 'verticalspiky', 'horizontalspiky', 'pattern' & 'void'")
 	}
 
 		if err := RootCmd.Execute(); err != nil {

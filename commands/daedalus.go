@@ -132,6 +132,10 @@ func MoveDirection(c *gin.Context) {
 		err = currentMaze.MoveUp()
 	}
 
+	/*ix, iy := currentMaze.Icarus()
+	currentMaze.SetStartPoint(ix, iy)
+	mazelib.PrintMaze(currentMaze)*/
+
 	var r mazelib.Reply
 
 	if err != nil {
@@ -869,6 +873,354 @@ func patternMaze() *Maze {
 	return z
 }
 
+type PrimWall struct {
+	X int
+	Y int
+	W int
+}
+
+func shuffle(arr []PrimWall) []PrimWall{
+	t := time.Now()
+	rand.Seed(int64(t.Nanosecond()))
+
+	for i := len(arr) - 1; i > 0; i-- {
+		j := rand.Intn(i)
+		arr[i], arr[j] = arr[j], arr[i]
+	}
+	return arr
+}
+
+func rightDownMaze() *Maze {
+	z := fullMaze()
+	ySize := viper.GetInt("height")
+	xSize := viper.GetInt("width")
+	stackSize := (xSize-1)*ySize + (ySize-1)*xSize
+
+	wallStack := make([]PrimWall, 0, stackSize)
+
+	// VERTICAL WALLS
+	for i:=0;i<(xSize-1);i++ {
+		for j:=0;j<ySize;j++ {
+			n := len(wallStack)
+			wallStack = wallStack[0 : n+1]
+			wallStack[n] = PrimWall{i, j , 1}
+		}
+	}
+
+	// HORIZONTAL WALLS
+	for i:=0;i<xSize;i++ {
+		for j:=0;j<(ySize-1);j++ {
+			n := len(wallStack)
+			wallStack = wallStack[0 : n+1]
+			wallStack[n] = PrimWall{i, j , 2}
+		}
+	}
+
+	shuffle(wallStack)
+
+	wall := wallStack[0]
+	z.rooms[wall.Y][wall.X].Visited = true
+	for ;len(wallStack)>0; {
+
+		wall = wallStack[0]
+		wallStack = wallStack[1:]
+		nx := wall.X
+		ny := wall.Y
+		if (wall.W%2)==1 {
+			nx++
+		} else {
+			ny++
+		}
+
+		if !z.rooms[ny][nx].Visited {
+			if (wall.W%2)==1 {
+				z.rooms[wall.Y][wall.X].Walls.Right = false
+				z.rooms[ny][nx].Walls.Left = false
+			} else {
+				z.rooms[wall.Y][wall.X].Walls.Bottom = false
+				z.rooms[ny][nx].Walls.Top = false
+			}
+			z.rooms[ny][nx].Visited = true
+		}
+
+	}
+
+	// Random* icarus & treasure
+	icarusX := rand.Intn(xSize)
+	icarusY := rand.Intn(ySize)
+	treasureX := rand.Intn(xSize)
+	treasureY := rand.Intn(ySize)
+
+	// *Don't let them be in the same cell, no fun then
+	for ;; {
+		if icarusX!=treasureX || icarusY!=treasureY {
+			break
+		} else {
+			treasureX = rand.Intn(xSize)
+			treasureY = rand.Intn(ySize)
+		}
+	}
+	z.SetStartPoint(icarusX, icarusY)
+	z.SetTreasure(treasureX, treasureY)
+
+	return z
+}
+
+func addPrimWall(wallStack []PrimWall, element PrimWall) []PrimWall {
+	n := len(wallStack)
+	wallStack = wallStack[0 : n+1]
+	wallStack[n] = element
+	return wallStack
+}
+
+func primMaze() *Maze {
+	z := fullMaze()
+	ySize := viper.GetInt("height")
+	xSize := viper.GetInt("width")
+	stackSize := (xSize-1)*ySize + (ySize-1)*xSize
+
+	wallStack := make([]PrimWall, 0, stackSize)
+
+	x := rand.Intn(xSize)
+	y := rand.Intn(ySize)
+
+	if x-1>=0 {
+		wallStack = addPrimWall(wallStack, PrimWall{x, y , 3})
+	}
+	if x+1<xSize {
+		wallStack = addPrimWall(wallStack, PrimWall{x, y , 1})
+	}
+	if y-1>=0 {
+		wallStack = addPrimWall(wallStack, PrimWall{x, y , 0})
+	}
+	if y+1<ySize {
+		wallStack = addPrimWall(wallStack, PrimWall{x, y , 2})
+	}
+
+	z.rooms[y][x].Visited = true
+
+	shuffle(wallStack)
+
+	var wall PrimWall
+	for ;len(wallStack)>0; {
+
+		wall = wallStack[0]
+		wallStack = wallStack[1:]
+		nx := wall.X
+		ny := wall.Y
+		if wall.W==0 {
+			ny--
+		} else if wall.W==1 {
+			nx++
+		} else if wall.W==2 {
+			ny++
+		} else {
+			nx--
+		}
+
+		if !z.rooms[ny][nx].Visited {
+			if wall.W==0 {
+				z.rooms[wall.Y][wall.X].Walls.Top = false
+				z.rooms[ny][nx].Walls.Bottom = false
+			} else if wall.W==1 {
+				z.rooms[wall.Y][wall.X].Walls.Right = false
+				z.rooms[ny][nx].Walls.Left = false
+			} else if wall.W==2 {
+				z.rooms[wall.Y][wall.X].Walls.Bottom = false
+				z.rooms[ny][nx].Walls.Top = false
+			} else {
+				z.rooms[wall.Y][wall.X].Walls.Left = false
+				z.rooms[ny][nx].Walls.Right = false
+			}
+			z.rooms[ny][nx].Visited = true
+
+			if (nx-1)>=0 && !z.rooms[ny][nx-1].Visited {
+				wallStack = addPrimWall(wallStack, PrimWall{nx, ny , 3})
+			}
+			if (nx+1)<xSize && !z.rooms[ny][nx+1].Visited {
+				wallStack = addPrimWall(wallStack, PrimWall{nx, ny , 1})
+			}
+			if (ny-1)>=0 && !z.rooms[ny-1][nx].Visited {
+				wallStack = addPrimWall(wallStack, PrimWall{nx, ny , 0})
+			}
+			if (ny+1)<ySize && !z.rooms[ny+1][nx].Visited {
+				wallStack = addPrimWall(wallStack, PrimWall{nx, ny , 2})
+			}
+			shuffle(wallStack)
+
+		}
+
+	}
+
+	// Random* icarus & treasure
+	icarusX := rand.Intn(xSize)
+	icarusY := rand.Intn(ySize)
+	treasureX := rand.Intn(xSize)
+	treasureY := rand.Intn(ySize)
+
+	// *Don't let them be in the same cell, no fun then
+	for ;; {
+		if icarusX!=treasureX || icarusY!=treasureY {
+			break
+		} else {
+			treasureX = rand.Intn(xSize)
+			treasureY = rand.Intn(ySize)
+		}
+	}
+	z.SetStartPoint(icarusX, icarusY)
+	z.SetTreasure(treasureX, treasureY)
+
+	return z
+}
+
+
+func circleMaze() *Maze {
+	z := emptyMaze()
+	ySize := viper.GetInt("height")
+	xSize := viper.GetInt("width")
+
+	cx := int(math.Floor(float64(xSize/2)))
+	cy := int(math.Floor(float64(ySize/2)))
+
+	for i:=0;i<cx;i++ {
+		for j:=i;j<(ySize-i);j++ {
+			z.rooms[j][i].Walls.Left = true
+			if (i-1)>=0 {
+				z.rooms[j][i-1].Walls.Right = true
+			}
+			z.rooms[j][xSize-1-i].Walls.Right = true
+			if (xSize-i)<xSize {
+				z.rooms[j][xSize-i].Walls.Left = true
+			}
+		}
+	}
+
+	for j:=0;j<cy;j++ {
+		for i:=j;i<(xSize-j);i++ {
+			z.rooms[j][i].Walls.Top = true
+			if (j-1)>=0 {
+				z.rooms[j-1][i].Walls.Bottom = true
+			}
+			z.rooms[ySize-1-j][i].Walls.Bottom = true
+			if (ySize-j)<ySize {
+				z.rooms[ySize-j][i].Walls.Top = true
+			}
+		}
+	}
+
+	for j:=1;j<cy;j++ {
+		i := j+rand.Intn(xSize-2*j)
+		z.rooms[j][i].Walls.Top = false
+		if (j-1)>=0 {
+			z.rooms[j-1][i].Walls.Bottom = false
+		}
+	}
+
+	// Random* icarus & treasure
+	icarusX := rand.Intn(xSize)
+	icarusY := rand.Intn(ySize)
+	treasureX := rand.Intn(xSize)
+	treasureY := rand.Intn(ySize)
+
+
+	/*z.rooms[0][6].Walls.Bottom = false
+	z.rooms[1][6].Walls.Top = false
+
+	z.rooms[1][10].Walls.Bottom = false
+	z.rooms[2][10].Walls.Top = false
+
+	z.rooms[2][4].Walls.Bottom = false
+	z.rooms[3][4].Walls.Top = false
+
+	z.rooms[3][10].Walls.Bottom = false
+	z.rooms[4][10].Walls.Top = false
+
+
+	icarusX := 11
+	icarusY := 8
+	treasureX := 10
+	treasureY := 2    */
+
+	// *Don't let them be in the same cell, no fun then
+	for ;; {
+		if icarusX!=treasureX || icarusY!=treasureY {
+			break
+		} else {
+			treasureX = rand.Intn(xSize)
+			treasureY = rand.Intn(ySize)
+		}
+	}
+	z.SetStartPoint(icarusX, icarusY)
+	z.SetTreasure(treasureX, treasureY)
+
+	return z
+}
+
+
+
+
+func MazeString(m mazelib.MazeI) string {
+	out := ""
+	str := make([][]string, m.Height()*3)
+	for i := 0; i < m.Height(); i++ {
+		str[i*3] = make([]string, m.Width()*3)
+		str[i*3+1] = make([]string, m.Width()*3)
+		str[i*3+2] = make([]string, m.Width()*3)
+		for j := 0; j < m.Width(); j++ {
+			room, _ := m.GetRoom(j, i)
+			str[i*3][j*3] = "▛"
+			str[i*3][j*3+1] = " "
+			str[i*3][j*3+2] = "▜"
+			str[i*3+2][j*3] = "▙"
+			str[i*3+2][j*3+1] = " "
+			str[i*3+2][j*3+2] = "▟"
+			str[i*3+1][j*3] = " "
+			str[i*3+1][j*3+2] = " "
+			str[i*3+1][j*3+1] = " "
+
+			if room.Walls.Top {
+				str[i*3][j*3+1] = "▀"
+			}
+
+			if room.Walls.Bottom {
+				str[i*3+2][j*3+1] = "▄"
+			}
+
+			if room.Walls.Left {
+				str[i*3+1][j*3] = "▌"
+			}
+
+			if room.Walls.Right {
+				str[i*3+1][j*3+2] = "▐"
+			}
+
+			if room.Visited {
+				str[i*3+1][j*3+1] = "·"
+			}
+
+			if room.Treasure {
+				str[i*3+1][j*3+1] = "⚿"
+			} else if room.Start {
+				str[i*3+1][j*3+1] = "⚑"
+			}
+
+			x, y := m.Icarus()
+			if x == j && y == i {
+				str[i*3+1][j*3+1] = "☉"
+			}
+
+		}
+	}
+
+	for x := 0; x < len(str); x++ {
+		for y := 0; y < len(str[x]); y++ {
+			out += str[x][y]
+		}
+		out += "\n"
+	}
+
+	return out
+}
 
 func createMaze() *Maze {
 
@@ -884,8 +1236,14 @@ func createMaze() *Maze {
 		return patternMaze()
 	} else if mazeString=="backtrack" { // created using bactrack algo
 		return backtrackerMaze()
+	} else if mazeString=="prim" { // created using prim algo
+		return primMaze()
+	} else if mazeString=="rightdown" {
+		return rightDownMaze()
+	} else if mazeString=="circle" { // concentric circles
+		return circleMaze()
 	} else {
-		return spikyVerticalMaze()
+		return primMaze()
 	}
 
 }
