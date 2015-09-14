@@ -797,6 +797,102 @@ func primMaze() *Maze {
 	return z
 }
 
+// Use Prim's method, but start from the treasure and only left a wall open, chances getting there should be smaller
+func cheatPrimMaze() *Maze {
+	z := fullMaze()
+	ySize := viper.GetInt("height")
+	xSize := viper.GetInt("width")
+	stackSize := (xSize-1)*ySize + (ySize-1)*xSize
+
+	wallStack := make([]PrimWall, 0, stackSize)
+
+
+	// Random* icarus & treasure
+	icarusX := rand.Intn(xSize)
+	icarusY := rand.Intn(ySize)
+	treasureX := rand.Intn(xSize)
+	treasureY := rand.Intn(ySize)
+
+	// *Don't let them be in the same cell, no fun then
+	for ;; {
+		if icarusX!=treasureX || icarusY!=treasureY {
+			break
+		} else {
+			treasureX = rand.Intn(xSize)
+			treasureY = rand.Intn(ySize)
+		}
+	}
+	z.SetStartPoint(icarusX, icarusY)
+	z.SetTreasure(treasureX, treasureY)
+
+	x := icarusX
+	y := icarusY
+
+
+	if x-1>=0 {
+		wallStack = addPrimWall(wallStack, PrimWall{x, y , 3})
+	} else {
+		wallStack = addPrimWall(wallStack, PrimWall{x, y , 1})
+	}
+
+	z.rooms[y][x].Visited = true
+
+	shuffle(wallStack)
+
+	var wall PrimWall
+	for ;len(wallStack)>0; {
+
+		wall = wallStack[0]
+		wallStack = wallStack[1:]
+		nx := wall.X
+		ny := wall.Y
+		if wall.W==0 {
+			ny--
+		} else if wall.W==1 {
+			nx++
+		} else if wall.W==2 {
+			ny++
+		} else {
+			nx--
+		}
+
+		if !z.rooms[ny][nx].Visited {
+			if wall.W==0 {
+				z.rooms[wall.Y][wall.X].Walls.Top = false
+				z.rooms[ny][nx].Walls.Bottom = false
+			} else if wall.W==1 {
+				z.rooms[wall.Y][wall.X].Walls.Right = false
+				z.rooms[ny][nx].Walls.Left = false
+			} else if wall.W==2 {
+				z.rooms[wall.Y][wall.X].Walls.Bottom = false
+				z.rooms[ny][nx].Walls.Top = false
+			} else {
+				z.rooms[wall.Y][wall.X].Walls.Left = false
+				z.rooms[ny][nx].Walls.Right = false
+			}
+			z.rooms[ny][nx].Visited = true
+
+			if (nx-1)>=0 && !z.rooms[ny][nx-1].Visited {
+				wallStack = addPrimWall(wallStack, PrimWall{nx, ny , 3})
+			}
+			if (nx+1)<xSize && !z.rooms[ny][nx+1].Visited {
+				wallStack = addPrimWall(wallStack, PrimWall{nx, ny , 1})
+			}
+			if (ny-1)>=0 && !z.rooms[ny-1][nx].Visited {
+				wallStack = addPrimWall(wallStack, PrimWall{nx, ny , 0})
+			}
+			if (ny+1)<ySize && !z.rooms[ny+1][nx].Visited {
+				wallStack = addPrimWall(wallStack, PrimWall{nx, ny , 2})
+			}
+			shuffle(wallStack)
+
+		}
+
+	}
+
+	return z
+}
+
 
 func circleMaze() *Maze {
 	z := emptyMaze()
@@ -861,6 +957,84 @@ func circleMaze() *Maze {
 	return z
 }
 
+func cheatTwoMaze() *Maze {
+	z := emptyMaze()
+	ySize := viper.GetInt("height")
+	xSize := viper.GetInt("width")
+
+	for i:=0;i<xSize;i++ {
+		z.rooms[0][i].Walls.Top = true
+		z.rooms[ySize-1][i].Walls.Bottom = true
+		if i>0 && i<(xSize-1) {
+			z.rooms[0][i].Walls.Bottom = true
+			z.rooms[1][i].Walls.Top = true
+		}
+	}
+
+	for j:=0;j<ySize;j++ {
+		z.rooms[j][0].Walls.Left = true
+		z.rooms[j][xSize-1].Walls.Right = true
+	}
+
+	cx := int(math.Floor(float64((xSize)/2)))
+	cy := int(math.Floor(float64((xSize)/2)))
+
+
+	// Random* icarus & treasure
+	icarusX := rand.Intn(xSize)
+	icarusY := rand.Intn(ySize)
+	treasureX := rand.Intn(xSize)
+	treasureY := rand.Intn(ySize)
+
+	// *Don't let them be in the same cell, no fun then
+	for ;; {
+		if icarusX!=treasureX || icarusY!=treasureY {
+			break
+		} else {
+			treasureX = rand.Intn(xSize)
+			treasureY = rand.Intn(ySize)
+		}
+	}
+	z.SetStartPoint(icarusX, icarusY)
+	z.SetTreasure(treasureX, treasureY)
+
+
+	mod := 0
+	if treasureX==(xSize-1) && (xSize%2)==1 {
+		mod = 1
+	}
+
+	for i:=0;i<cx;i++ {
+		for j:=1;j<(ySize-1);j++ {
+			z.rooms[j+mod][2*i].Walls.Right = true
+			if (2*i+1)<xSize {
+				z.rooms[j+mod][2*i+1].Walls.Left = true
+			}
+
+			if i<cy {
+				z.rooms[j+((mod+1)%2)][2*i+1].Walls.Right = true
+				if (2*i+2)<xSize {
+					z.rooms[j+((mod+1)%2)][2*i+2].Walls.Left = true
+				}
+			}
+		}
+	}
+
+	if !z.rooms[treasureY][treasureX].Walls.Top {
+		z.rooms[treasureY][treasureX].Walls.Top = true
+		z.rooms[treasureY-1][treasureX].Walls.Bottom = true
+	} else if !z.rooms[treasureY][treasureX].Walls.Right {
+		z.rooms[treasureY][treasureX].Walls.Right = true
+		z.rooms[treasureY][treasureX+1].Walls.Left = true
+	} else if !z.rooms[treasureY][treasureX].Walls.Left {
+		z.rooms[treasureY][treasureX].Walls.Left = true
+		z.rooms[treasureY][treasureX-1].Walls.Right = true
+	}
+
+
+	return z
+}
+
 
 
 
@@ -878,6 +1052,10 @@ func createMaze() *Maze {
 		return backtrackerMaze()
 	} else if mazeString=="prim" { // created using prim algo
 		return primMaze()
+	} else if mazeString=="cheat" { // created using prim algo
+		return cheatPrimMaze()
+	} else if mazeString=="cheattwo" { //
+		return cheatTwoMaze()
 	} else if mazeString=="circle" { // concentric circles
 		return circleMaze()
 	} else {

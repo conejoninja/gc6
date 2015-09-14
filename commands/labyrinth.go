@@ -73,8 +73,8 @@ func init() {
 	RootCmd.PersistentFlags().IntP("height", "y", 10, "height of the laybrinth") // 'h' is used for help already
 	RootCmd.PersistentFlags().IntP("times", "t", 1, "times to solve the laybrinth")
 	RootCmd.PersistentFlags().IntP("max-steps", "m", 500, "Maximum steps before giving up")
-	RootCmd.PersistentFlags().StringP("maze", "z", "default", "type of labyrinth, available values are 'backtrack', 'verticalspiky' (default), 'horizontalspiky', 'human' & 'void'")
-	RootCmd.PersistentFlags().StringP("ia", "i", "samedirection", "how Icarus will choose the path, available values are 'samedirection' (default), 'random', 'mostlyright'")
+	RootCmd.PersistentFlags().StringP("maze", "z", "default", "type of labyrinth, available values are 'prim' (default), 'backtrack', 'verticalspiky', 'horizontalspiky', 'circle', 'void', 'cheat' & 'cheattwo'")
+	RootCmd.PersistentFlags().StringP("ia", "i", "samedirection", "how Icarus will choose the path, available values are 'samedirection' (default), 'random', 'mostlyright', 'classicsamedirection', 'classicrandom' & 'classicmostlyright'")
 
 	// Bind viper to these flags so viper can read flag values along with config, env, etc.
 	viper.BindPFlag("width", RootCmd.PersistentFlags().Lookup("width"))
@@ -106,11 +106,6 @@ func initConfig() {
 
 //Execute adds all child commands to the root command Labyrinth and sets flags appropriately.
 func Execute() {
-	mazeString := viper.GetString("maze")
-	if mazeString=="default" {
-		fmt.Println(mazeString, "Daedalus could create different maps, try using the parameter 'maze' with one of the following values :'prim' (default), 'circle', 'rightdown', 'backtrack', 'verticalspiky', 'horizontalspiky', 'pattern' & 'void'")
-	}
-
 		if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)

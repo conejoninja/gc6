@@ -133,11 +133,10 @@ func ToReply(in []byte) mazelib.Reply {
 func backtrackerClassicIcarus() {
 	// Assume the size of the maze is unknown, even if for this challenge is fixed
 	mapSize := 200
-	pathSize := mapSize
 	pathIndex :=0
 	// Grow a 1D array is easier than 2D array
 	visited := make([]bool, mapSize)
-	path := make([]mazelib.Coordinate, mapSize)
+	path := make([]mazelib.Coordinate, viper.GetInt("max-steps"))
 	previousDirection := rand.Intn(4)
 	// Add 1 so it doesn't complain of unused variable (depends on the IA choosen it might not be used)
 	previousDirection++
@@ -205,9 +204,6 @@ func backtrackerClassicIcarus() {
 					x = nx
 					y = ny
 					pathIndex++
-					if pathIndex>=pathSize {
-						path, pathSize = extendPath(path, pathSize)
-					}
 					path[pathIndex] = mazelib.Coordinate{x, y}
 
 					break
@@ -250,11 +246,10 @@ func backtrackerClassicIcarus() {
 func backtrackerIcarus() {
 	// Assume the size of the maze is unknown, even if for this challenge is fixed
 	mapSize := 200
-	pathSize := mapSize
 	pathIndex :=0
 	// Grow a 1D array is easier than 2D array
 	virtual := make([]VirtualMaze, mapSize)
-	path := make([]mazelib.Coordinate, mapSize)
+	path := make([]mazelib.Coordinate, viper.GetInt("max-steps"))
 	previousDirection := rand.Intn(4)
 	// Add 1 so it doesn't complain of unused variable (depends on the IA choosen it might not be used)
 	previousDirection++
@@ -325,9 +320,6 @@ func backtrackerIcarus() {
 					x = nx
 					y = ny
 					pathIndex++
-					if pathIndex>=pathSize {
-						path, pathSize = extendPath(path, pathSize)
-					}
 					path[pathIndex] = mazelib.Coordinate{x, y}
 
 					break
@@ -488,12 +480,6 @@ func coordsToInt(x, y int) int {
 	return z
 }
 
-func extendPath(path []mazelib.Coordinate, size int) ([]mazelib.Coordinate, int){
-	newSize := size+100;
-	newPath := make([]mazelib.Coordinate, newSize)
-	copy(newPath, path)
-	return newPath, newSize
-}
 func extendVisited(labyrinth []bool, size int) ([]bool, int) {
 	newSize := size+200
 	newLabyrinth := make([]bool, newSize)
